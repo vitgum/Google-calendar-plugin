@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config>
+
+  <section name="google.calendar.plugin">
+    <section name="google.calendar.api">
+      <param name="client.id" type="string">CLIENT_ID</param>
+      <param name="client.secret" type="string">CLIENT_SECRET</param>
+      <param name="application.name" type="string">Google Calendar Plugin</param>
+    </section>
+
+    <section name="memory.data.store">
+      <param name="clear.data.timeout.min" type="int">20</param>
+    </section>
+  </section>
+
+</config>
