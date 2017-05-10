@@ -49,6 +49,9 @@ public class GoogleCalendarServlet extends HttpServlet {
     handleRequest(request, response);
   }
 
+  //TODO: можно улучшить читабельность этого метода разбив обработку разных сценариев на отдельные кусочки
+  //TODO: в методе 87 строк, что в сочетании с проверками на номер текущей страницы несколько затрудняет чтение\понимание
+  //TODO: я бы вынес в отдельные обработчики те места где делается преждевременный return и по возможности переименовал проверки вида pid==1 на isAskNamePage(...)
   private void handleRequest(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
     logRequest(request);
 
