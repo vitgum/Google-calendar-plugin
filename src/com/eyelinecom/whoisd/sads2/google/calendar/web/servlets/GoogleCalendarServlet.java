@@ -49,41 +49,24 @@ public class GoogleCalendarServlet extends HttpServlet {
     handleRequest(request, response);
   }
 
-  //TODO: можно улучшить читабельность этого метода разбив обработку разных сценариев на отдельные кусочки
-  //TODO: в методе 87 строк, что в сочетании с проверками на номер текущей страницы несколько затрудняет чтение\понимание
-  //TODO: я бы вынес в отдельные обработчики те места где делается преждевременный return и по возможности переименовал проверки вида pid==1 на isAskNamePage(...)
   private void handleRequest(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
     logRequest(request);
 
     try {
-      String userId = getRequiredParameter(request, "user_id");
+      String userId = getUserId(request);
       int pid = getPid(request);
       Locale locale = getLocale(request);
       Map<String, String> params = getParameters(request);
-
-      String userInput = pid == 1 ? request.getParameter("user_input") : getRequiredParameter(request, "user_input");
-
+      String userInput = isStartPage(pid) ? request.getParameter("user_input") : getRequiredParameter(request, "user_input");
       ZoneId timeZone = ZoneId.of(params.get("time_zone"));
       List<DayOfWeek> workDays = getWorkDays(params.get("work_days"));
       int timeSlot = getTimeSlot(params.get("time_slot"));
+      UserData userData = getOrCreateUserData(userId);
 
-      UserData userData = storage.getData(userId);
-      if(userData == null) {
-        userData = new UserData();
-        storage.setData(userId, userData);
-      }
+      if(log.isInfoEnabled())
+        log.info("user ID: " + userId + ", page ID: " + pid + ", user input: '" + userInput + "', user data: " + userData);
 
-      if(log.isInfoEnabled()) {
-        log.info("user ID: " + userId);
-        log.info("page ID: " + pid);
-        log.info("user input: '" + userInput + "'");
-        log.info("user data: " + userData);
-      }
-
-      LocalDate selectedDay = pid == 3 || pid == 4 ? getSelectedDay(userInput, timeZone) : null;
-      if(pid == 6) {
-        selectedDay = userData.getDate();
-      }
+      LocalDate selectedDay = isAskDayPage(pid) ? getSelectedDay(userInput, timeZone) : (isAskTimePage(pid) ? userData.getDate() : null);
 
       List<TimeSlot> availableTimeSlots = selectedDay != null
           ? getAvailableTimeSlots(selectedDay, timeZone, params.get("work_hours"), timeSlot, locale, params.get("access_token"), params.get("refresh_token"))
@@ -91,7 +74,7 @@ public class GoogleCalendarServlet extends HttpServlet {
 
       PageContext pageCtx = new PageCtx(timeZone, workDays, params, availableTimeSlots, userData, request.getContextPath());
 
-      if(pid == 1 && userInput == null) {
+      if(isStartPage(pid) && userInput == null) {
         sendResponse(response, new AskNamePage(locale).toXml(pageCtx));
         return;
       }
@@ -105,29 +88,15 @@ public class GoogleCalendarServlet extends HttpServlet {
       BotPage next = curr.getNextPage(userInput, pageCtx);
 
       if(next instanceof ExitMarkerPage) {
-        String exitUrl = params.get("on_exit_url");
         if(log.isInfoEnabled()) {
-          log.info("Exit from bot to: " + exitUrl);
+          log.info("Exiting from bot...");
         }
-        sendRedirect(response, exitUrl);
+        sendRedirect(response, params.get("on_exit_url"));
         return;
       }
-
-      if(next instanceof EventAddMarkerPage) {
-        try {
-          addCalendarEvent(userData, params.get("access_token"), params.get("refresh_token"), locale, timeZone);
-          if(log.isInfoEnabled()) {
-            log.info("Event added to calendar: " + userData);
-          }
-          storage.removeData(userId);
-          sendRedirect(response, params.get("on_add_event_url"));
-          return;
-        }
-        catch(GoogleCalendarServiceException e) {
-          log.error(e.getMessage(), e);
-          sendResponse(response, new ErrorPage(locale).toXml(pageCtx));
-          return;
-        }
+      else if(next instanceof EventAddMarkerPage) {
+        processAddCalendarEvent(userId, userData, timeZone, params, locale, pageCtx, response);
+        return;
       }
 
       sendResponse(response, next.toXml(pageCtx));
@@ -140,6 +109,18 @@ public class GoogleCalendarServlet extends HttpServlet {
       log.error(e.getMessage(), e);
       response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
     }
+  }
+
+  private static boolean isStartPage(int pageId) {
+    return pageId == 1;
+  }
+
+  private static boolean isAskDayPage(int pageId) {
+    return pageId == 3 || pageId == 4;
+  }
+
+  private static boolean isAskTimePage(int pageId) {
+    return pageId == 6;
   }
 
   private static BotPage getPage(int pageId, Locale locale) {
@@ -196,12 +177,38 @@ public class GoogleCalendarServlet extends HttpServlet {
     }
   }
 
+  private UserData getOrCreateUserData(String userId) {
+    UserData userData = storage.getData(userId);
+
+    if(userData == null) {
+      userData = new UserData();
+      storage.setData(userId, userData);
+    }
+
+    return userData;
+  }
+
   private static TimeSlot getTime(List<TimeSlot> availableTimeSlots, String userInput) {
     for(TimeSlot timeSlot : availableTimeSlots) {
       if(timeSlot.getValue().equals(userInput))
         return timeSlot;
     }
     return null;
+  }
+
+  private void processAddCalendarEvent(String userId, UserData data, ZoneId timeZone, Map<String, String> params, Locale locale, PageContext pageCtx, HttpServletResponse response) throws IOException {
+    try {
+      addCalendarEvent(data, params.get("access_token"), params.get("refresh_token"), locale, timeZone);
+      if(log.isInfoEnabled()) {
+        log.info("Event added to calendar: " + data);
+      }
+      storage.removeData(userId);
+      sendRedirect(response, params.get("on_add_event_url"));
+    }
+    catch(GoogleCalendarServiceException e) {
+      log.error(e.getMessage(), e);
+      sendResponse(response, new ErrorPage(locale).toXml(pageCtx));
+    }
   }
 
   private void addCalendarEvent(UserData data, String accessToken, String refreshToken, Locale locale, ZoneId timeZone) throws GoogleCalendarServiceException {
@@ -263,12 +270,24 @@ public class GoogleCalendarServlet extends HttpServlet {
   }
 
   private static Locale getLocale(HttpServletRequest request) {
-    String lang = request.getParameter("lang");
+    String locale = request.getParameter("locale");
 
-    if(lang == null)
-      lang = "en";
+    if(locale == null)
+      locale = "en";
 
-    return new Locale(lang);
+    return new Locale(locale);
+  }
+
+  private static String getUserId(HttpServletRequest request) throws HttpServletRequestException {
+    String userId = request.getParameter("user_id");
+
+    if(userId == null) {
+      userId = request.getParameter("subscriber");
+      if(userId == null)
+        throw new HttpServletRequestException("No \"user_id\" parameter", HttpServletResponse.SC_BAD_REQUEST);
+    }
+
+    return userId;
   }
 
   private static int getPid(HttpServletRequest request) throws HttpServletRequestException {
