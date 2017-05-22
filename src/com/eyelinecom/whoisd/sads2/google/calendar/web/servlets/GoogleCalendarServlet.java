@@ -388,6 +388,7 @@ public class GoogleCalendarServlet extends HttpServlet {
     String workHours = getRequiredParameter(request, "work_hours");
     String onAddEventUrl = getRequiredParameter(request, "on_add_event_url");
     String onExitUrl = getRequiredParameter(request, "on_exit_url");
+    String locale = request.getParameter("locale") != null ? request.getParameter("locale") : "en";
 
     Map<String, String> params = new HashMap<>();
     params.put("access_token", accessToken);
@@ -398,6 +399,7 @@ public class GoogleCalendarServlet extends HttpServlet {
     params.put("work_hours", workHours); //09-18
     params.put("on_add_event_url", onAddEventUrl);
     params.put("on_exit_url", onExitUrl);
+    params.put("locale", locale);
     return params;
   }
 

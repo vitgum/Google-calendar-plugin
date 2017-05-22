@@ -44,9 +44,7 @@
       <classpath refid="classpath"/>
     </javac>
 
-    <copy todir="${classes.dir}">
-      <fileset dir="${src.dir}" excludes="**/*.java"/>
-    </copy>
+    <native2ascii src="${src.dir}" dest="${classes.dir}" ext=".properties" includes="**/*.properties"/>
   </target>
 
   <target name="distr" description="build web-app" depends="compile">
