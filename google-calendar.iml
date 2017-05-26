@@ -28,13 +28,6 @@
         </webroots>
       </configuration>
     </facet>
-    <facet type="IvyIDEA" name="IvyIDEA2">
-      <configuration ivyFile="$MODULE_DIR$/ivy.xml" useProjectSettings="true" useCustomIvySettings="true" ivySettingsFile="" onlyResolveSelectedConfigs="false">
-        <propertiesSettings>
-          <propertiesFiles includeProjectLevelPropertiesFiles="true" />
-        </propertiesSettings>
-      </configuration>
-    </facet>
     <facet type="web" name="Web3">
       <configuration>
         <descriptors>
@@ -56,5 +49,9 @@
     <orderEntry type="library" scope="PROVIDED" name="Tomcat 8" level="application_server_libraries" />
     <orderEntry type="library" name="lib" level="project" />
     <orderEntry type="library" name="libdev" level="project" />
+  </component>
+  <component name="sonarModuleSettings">
+    <option name="localAnalysisScripName" value="&lt;PROJECT&gt;" />
+    <option name="serverName" value="&lt;PROJECT&gt;" />
   </component>
 </module>
