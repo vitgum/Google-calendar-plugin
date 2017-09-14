@@ -1,5 +1,7 @@
 <project name="sads-google-calendar" default="distr" xmlns:ivy="antlib:org.apache.ivy.ant">
 
+  <property file="build.properties"/>
+
   <property name="app.name"        value="sads-google-calendar"/>
 
   <property name="src.dir"         value="src"/>
@@ -11,7 +13,6 @@
   <property name="distr.dir"       value="${build.dir}/distr"/>
   <property name="classes.dir"     value="${build.dir}/classes"/>
 
-  <property name="release.version" value="dev"/>
 
   <path id="classpath">
     <fileset dir="${lib.dir}" includes="*.jar"/>
@@ -47,7 +48,7 @@
     <native2ascii src="${src.dir}" dest="${classes.dir}" ext=".properties" includes="**/*.properties"/>
   </target>
 
-  <target name="distr" description="build web-app" depends="compile">
+  <target name="distr" description="build web-app" depends="resolve, compile">
     <delete file="${distr.dir}/${app.name}.war" failonerror="false"/>
     <mkdir dir="${distr.dir}"/>
 
